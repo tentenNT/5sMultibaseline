@@ -5,11 +5,7 @@ import numpy as np
 import cv2
 import sys
 from time import sleep
-
-# 引数をミリ秒単位で受け取るmsleep()を作っておく
-# （使いませんでした）
-import time
-msleep = lambda x: time.sleep(x/1000.0)
+import pdb
 
 cv2.startWindowThread()
 
@@ -27,6 +23,9 @@ if cap.isOpened() is False:
 
 # FPSの取得
 fps = cap.get(cv2.CAP_PROP_FPS)
+
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640) # カメラ画像の横幅を640に設定
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 360) # カメラ画像の縦幅を360に設定
 
 # termination criteria
 # [criteriaの指定]
@@ -51,14 +50,13 @@ while True:
         continue
     gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
 
-    cv2.putText(img,'Number of capture: '+str(imgInd),(30,20),cv2.FONT_HERSHEY_PLAIN, 1,(0,255,0))
-    cv2.putText(img,'c: Capture the image',(30,40),cv2.FONT_HERSHEY_PLAIN, 1,(0,255,0))
-    cv2.putText(img,'q: Finish capturing and calcurate the camera matrix and distortion',(30,60),cv2.FONT_HERSHEY_PLAIN, 1,(0,255,0))
-    cv2.imshow("image", img) 
+#     cv2.putText(img,'Number of capture: '+str(imgInd),(30,20),cv2.FONT_HERSHEY_PLAIN, 1,(0,255,0))
+#     cv2.putText(img,'c: Capture the image',(30,40),cv2.FONT_HERSHEY_PLAIN, 1,(0,255,0))
+#     cv2.putText(img,'q: Finish capturing and calcurate the camera matrix and distortion',(30,60),cv2.FONT_HERSHEY_PLAIN, 1,(0,255,0))
+    cv2.imshow("image"+str(cam_num), img) 
 
     key = cv2.waitKey(1) & 0xFF
 
-    # ここの処理を変える
     #    if key == ord('c'):
     # 約2秒毎に撮影（ピッタリでは無い気がする）
     if time_counter % (int(fps)*2) == 0:
@@ -77,12 +75,12 @@ while True:
             # Draw and display the corners
             # [コーナーをディスプレイ上に表示]
             img = cv2.drawChessboardCorners(img, (10,7), corners2,ret)
-            cv2.imshow('image',img)
+            cv2.imshow('image'+str(cam_num),img)
             cv2.waitKey(500)
-            cv2.imwrite('./data/calibration/image' + str(imgInd) + 'Cam' + str(cam_num) + '.jpg', img)
+            cv2.imwrite('./data/calibration'+str(cam_num)+'/image'+str(imgInd) + 'Cam' + str(cam_num) + '.jpg', img)
             imgInd+=1
-    # qキーか15枚撮影したら終了
-    if key == ord('q') or imgInd == 15:
+    # qキーか20枚撮影したら終了
+    if key == ord('q') or imgInd == 20:
         break
 
 # Calc urate the camera matrix
@@ -106,20 +104,5 @@ except cv2.error:
     print("calibration error!")
     sys.exit()
 
-
 cap.release()
 cv2.destroyAllWindows()
-
-img = cv2.imread('image0Cam' + str(cam_num) + '.jpg')
-h, w = img.shape[:2]
-newcameramtx, roi=cv2.getOptimalNewCameraMatrix(mtx,dist,(w,h),1,(w,h))
-
-# undistort
-# [歪み補正]
-dst = cv2.undistort(img, mtx, dist, None, newcameramtx)
-
-# crop the image
-# [歪み補正したイメージ生成]
-x,y,w,h = roi
-dst = dst[y:y+h, x:x+w]
-cv2.imwrite('./data/calibresult.png',dst)

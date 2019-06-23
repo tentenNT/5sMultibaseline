@@ -66,7 +66,7 @@ while True:
             if time_counter % (int(fps)*capture_time) == 0:
                 cv2.imshow('Image'+str(ind), img)
                 cv2.waitKey(500)
-                cv2.imwrite('./data/cap/' + str(img_name) + '_cam' + str(ind) + "_" +str(imgInd) + '.jpg', img)
+                cv2.imwrite('./data/calibration' + str(ind) + '/' + str(img_name) + '_cam' + str(ind) + "_" +str(imgInd) + '.jpg', img)
 
                 imgInd+=1
 
