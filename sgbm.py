@@ -4,25 +4,39 @@ import cv2
 import matplotlib.pyplot as plt
 import glob
 import csv
+import pdb
 
 cv2.startWindowThread()
-right_camera_num = 1
-
-with np.load("./calibrationResult0_"+str(right_camera_num)+".npz") as X:
+left_camera_num = int(input("left_camera_num: "))
+right_camera_num = int(input("right_camera_num: "))
+image_num = int(input("image_num: "))
+with np.load("./calibrationResult" + str(left_camera_num) +"_"+str(right_camera_num)+".npz") as X:
     rms, mtxL2, distL2, mtxR2, distR2, R, T, E, F = [X[i] for i in ("rms", "mtxL2", "distL2", "mtxR2", "distR2", "R", "T", "E", "F")]
 
-imgL = cv2.imread("./data/calibration0/cap_cam0_0.jpg")
-imgR = cv2.imread("./data/calibration"+str(right_camera_num)+"/cap_cam"+str(right_camera_num)+"_"+str(right_camera_num + 0)+".jpg")
+# 0_1は常に読み込ませておく
+with np.load("./calibrationResult0_1.npz") as X:
+    rms0_1, mtxL0_1, distL0_1, mtxR0_1, distR0_1, R0_1, T0_1, E0_1, F0_1 = [X[i] for i in ("rms", "mtxL2", "distL2", "mtxR2", "distR2", "R", "T", "E", "F")]
+
+# left_cam_num == 1 かつright_cam_num == 2ならobj_pointsを平行移動させる
+
+imgL = cv2.imread("./data/calibration" + str(left_camera_num) + "/cap_cam"+str(left_camera_num)+ "_"+ str(image_num*3) + ".jpg")
+imgR = cv2.imread("./data/calibration"+str(right_camera_num)+"/cap_cam"+str(right_camera_num)+"_"+str(right_camera_num + image_num*3)+".jpg")
 grayL = cv2.cvtColor(imgL, cv2.COLOR_BGR2GRAY)
 grayR = cv2.cvtColor(imgR, cv2.COLOR_BGR2GRAY)
 
 h, w = imgL.shape[:2]
+
+
 
 # 平行化のための回転行列
 flags = 0
 alpha = 1
 RpL, RpR, PpL, PpR, Q, validPixROI_L, validPixROI_R = \
     cv2.stereoRectify(mtxL2, distL2, mtxR2, distR2, (w,h), R, T, flags, alpha, (w,h))
+
+# テスト
+RpL0_1, RpR0_1, PpL0_1, PpR0_1, Q0_1, validPixROI_L0_1, validPixROI_R0_1 = \
+    cv2.stereoRectify(mtxL0_1, distL0_1, mtxR0_1, distR0_1, (w,h), R0_1, T0_1, flags, alpha, (w,h))
 
 m1type = cv2.CV_32FC1
 map4pL = cv2.initUndistortRectifyMap(mtxL2, distL2, RpL, PpL, (w,h), cv2.CV_32FC1)
@@ -40,13 +54,11 @@ cv2.destroyAllWindows()
 cv2.imwrite("./data/rectifiedImgL.jpg", rectifiedImgL)
 cv2.imwrite("./data/rectifiedImgR.jpg", rectifiedImgR)
 windowSize = 1 # ブロックサイズ（小さめに設定する）
-minDisp = 30   # 視差の下限（通常 0）
+minDisp = 40   # 視差の下限（通常 0）
 numDisp = 80   # 視差の個数の上限（最大視差＝ minDisp + numDisp）
 stereo = cv2.StereoSGBM_create(
         minDisparity = minDisp,      # 視差の下限
         numDisparities = numDisp,    # 視差の個数の上限
-        blockSize = windowSize,      # ブロックサイズ
-        P1 = 8*3*windowSize**2,      # 視差のなめらかさを制御するパラメータ1
         P2 = 32*3*windowSize**2,     # 視差のなめらかさを制御するパラメータ2
         disp12MaxDiff = 1,           # left-right 視差チェックにおけて許容される最大の差
         uniquenessRatio = 20,        # マッチングの一意性のパラメータ（パーセント単位で表現）
@@ -57,9 +69,10 @@ stereo = cv2.StereoSGBM_create(
 rectifiedGrayL = cv2.cvtColor(rectifiedImgL, cv2.COLOR_BGR2GRAY)
 rectifiedGrayR = cv2.cvtColor(rectifiedImgR, cv2.COLOR_BGR2GRAY)
 
-# disparity = stereo.compute(rectifiedGrayL, rectifiedGrayR).astype(np.float32) / 16
+disparity = stereo.compute(rectifiedGrayL, rectifiedGrayR).astype(np.float32) / 16
 # disparity = (disparity - minDisp) / numDisp
-disparity = stereo.compute(rectifiedGrayL, rectifiedGrayR)
+# disparity = stereo.compute(rectifiedGrayL, rectifiedGrayR)
+# ノーマライズ
 # disparity = cv2.normalize(disparity, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
 
 fig = plt.figure(figsize=(16,9))
@@ -80,8 +93,15 @@ plt.show()
 # '''
 
 # ply形式の3Dモデルファイルを生成
-def writeAsPly(outFilePath, verts, colors):
+def writeAsPly(outFilePath, verts, colors, left_camera_num, right_camera_num):
     verts = verts.reshape(-1, 3)
+    # カメラ次第で追加の平行移動
+    # if left_camera_num == 1 and right_camera_num == 2:
+    #     print("追加で移動")
+    #     verts[:,0] += T[0] - T0_1[0]
+    #     verts[:,1] += T[1] - T0_1[1]
+    #     verts[:,2] += T[2] - T0_1[2]
+
     colors = colors.reshape(-1, 3)
     verts = np.hstack([verts, colors/255.0])
     
@@ -93,6 +113,8 @@ def writeAsPly(outFilePath, verts, colors):
 
 # XYZ
 points = cv2.reprojectImageTo3D(disparity, Q, handleMissingValues=False)
+# テスト
+# points = cv2.reprojectImageTo3D(disparity, Q0_1, handleMissingValues=False)
 
 # RGB
 colors = cv2.cvtColor(rectifiedImgL,cv2.COLOR_BGR2RGB)
@@ -125,10 +147,10 @@ ply_header = [['ply'],
 print('generating 3d point cloud...')
 
 # plyファイルを生成
-filename = "pointcloud.ply"
+filename = "pointcloud" + str(left_camera_num) + "_" + str(right_camera_num) + ".ply"
 outFilePath = os.path.join("./data", filename)
 
 #write_ply(outFilePath, outPoints, outColors)
-writeAsPly(outFilePath, outPoints, outColors)
+writeAsPly(outFilePath, outPoints, outColors, left_camera_num, right_camera_num)
 
 print('finished')
