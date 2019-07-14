@@ -2,7 +2,7 @@ import os
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
-import glob 
+import glob
 import csv
 import pdb
 
@@ -15,8 +15,7 @@ with np.load("./calibrationResult" + str(left_camera_num) +"_"+str(right_camera_
 
 # 0_1は常に読み込ませておく(test)
 # with np.load("./calibrationResult0_1.npz") as X:
-#     rms0_1, mtxL0_1, distL0_1, mtxR0_1, distR0_1, R0_1, T0_1, E0_1, F0_1 = [X[i] for i in ("rms", "mtxL2", "distL2", "mtxR2", "distR2", "R", "T", "E", "F")]
-
+#     rms0_1, mtxL0_1, distL0_1, mtxR0_1, distR0_1, R0_1, T0_1, E0_1, F0_1 = [X[i] for i in ("rms", "mtxL2", "distL2", "mtxR2", "distR2", "R", "T", "E", "F")] 
 # left_cam_num == 1 かつright_cam_num == 2ならobj_pointsを平行移動させる
 
 imgL = cv2.imread("./data/calibration" + str(left_camera_num) + "/cap_cam"+str(left_camera_num)+ "_"+ str(image_num*3) + ".jpg")
@@ -34,6 +33,12 @@ alpha = 1
 RpL, RpR, PpL, PpR, Q, validPixROI_L, validPixROI_R = \
     cv2.stereoRectify(mtxL2, distL2, mtxR2, distR2, (w,h), R, T, flags, alpha, (w,h))
 
+# Q行列を保存
+np.savetxt("Q" + str(left_camera_num) + "_" + str(right_camera_num) + ".csv", Q, delimiter =',',fmt="%0.14f") #新しいカメラ行列を保存
+
+np.savetxt("P_L" + str(left_camera_num) + "_" + str(right_camera_num) + ".csv", PpL, delimiter =',',fmt="%0.14f") #新しいカメラ行列を保存
+
+np.savetxt("P_R" + str(left_camera_num) + "_" + str(right_camera_num) + ".csv", PpR, delimiter =',',fmt="%0.14f") #新しいカメラ行列を保存
 # テスト
 # RpL0_1, RpR0_1, PpL0_1, PpR0_1, Q0_1, validPixROI_L0_1, validPixROI_R0_1 = \
 #     cv2.stereoRectify(mtxL0_1, distL0_1, mtxR0_1, distR0_1, (w,h), R0_1, T0_1, flags, alpha, (w,h))
@@ -54,27 +59,35 @@ cv2.destroyAllWindows()
 cv2.imwrite("./data/rectifiedImgL.jpg", rectifiedImgL)
 cv2.imwrite("./data/rectifiedImgR.jpg", rectifiedImgR)
 windowSize = 1 # ブロックサイズ（小さめに設定する）
-minDisp = 630   # 視差の下限（通常 0）
-numDisp = 80   # 視差の個数の上限（最大視差＝ minDisp + numDisp）
+minDisp = 10   # 視差の下限（通常 0）
+# 16の倍数で指定
+numDisp = 128   # 視差の個数の上限（最大視差＝ minDisp + numDisp）
+
 """
 stereo = cv2.StereoSGBM_create(
         minDisparity = minDisp,      # 視差の下限
         numDisparities = numDisp,    # 視差の個数の上限
         P2 = 32*3*windowSize**2,     # 視差のなめらかさを制御するパラメータ2
         disp12MaxDiff = 1,           # left-right 視差チェックにおけて許容される最大の差
-        uniquenessRatio = 30,        # マッチングの一意性のパラメータ（パーセント単位で表現）
-        speckleWindowSize = 100,     # 視差計算時の連結成分の最大サイズ
-        speckleRange = 32            # それぞれの連結成分における視差の最大差
-    )
-"""
-stereo = cv2.StereoSGBM_create(
-        minDisparity = minDisp,      # 視差の下限
-        numDisparities = numDisp,    # 視差の個数の上限
-        P2 = 32*3*windowSize**2,     # 視差のなめらかさを制御するパラメータ2
-        disp12MaxDiff = 1,           # left-right 視差チェックにおけて許容される最大の差
-        uniquenessRatio = 50,        # マッチングの一意性のパラメータ（パーセント単位で表現）
         preFilterCap = 63,
-        speckleWindowSize = 250,     # 視差計算時の連結成分の最大サイズ
+        uniquenessRatio = 30,        # マッチングの一意性のパラメータ（パーセント単位で表現）
+        speckleWindowSize = 150,     # 視差計算時の連結成分の最大サイズ
+        speckleRange = 1            # それぞれの連結成分における視差の最大差
+    )
+
+"""
+
+stereo = cv2.StereoSGBM_create(
+        minDisparity = minDisp,      # 視差の下限
+        numDisparities = numDisp,    # 視差の個数の上限
+        P2 = 32*3*windowSize**2,     # 視差のなめらかさを制御するパラメータ2
+        disp12MaxDiff = 1,           # left-right 視差チェックにおけて許容される最大の差
+#         uniquenessRatio = 50,        # マッチングの一意性のパラメータ（パーセント単位で表現）
+        uniquenessRatio = 30,        # マッチングの一意性のパラメータ（パーセント単位で表現）
+        preFilterCap = 63,
+#         speckleWindowSize = 250,     # 視差計算時の連結成分の最大サイズ
+#         speckleRange = 1,            # それぞれの連結成分における視差の最大差
+        speckleWindowSize = 150,     # 視差計算時の連結成分の最大サイズ
         speckleRange = 1,            # それぞれの連結成分における視差の最大差
         mode = cv2.STEREO_SGBM_MODE_HH
         # mode = cv2.STEREO_SGBM_MODE_SGBM_3WAY
@@ -83,16 +96,36 @@ stereo = cv2.StereoSGBM_create(
 rectifiedGrayL = cv2.cvtColor(rectifiedImgL, cv2.COLOR_BGR2GRAY)
 rectifiedGrayR = cv2.cvtColor(rectifiedImgR, cv2.COLOR_BGR2GRAY)
 
+# フィルタ無し
 disparity = stereo.compute(rectifiedGrayL, rectifiedGrayR).astype(np.float32) / 16
+
+"""
+# WLSフィルタをかける
+right_matcher = cv2.ximgproc.createRightMatcher(stereo)
+# FILTER Parameters
+lmbda = 5000
+sigma = 0.4 
+visual_multiplier = 1.0
+wls_filter = cv2.ximgproc.createDisparityWLSFilter(matcher_left=stereo)
+wls_filter.setLambda(lmbda)
+wls_filter.setSigmaColor(sigma)
+
+print('computing disparity...')
+displ = stereo.compute(rectifiedGrayL, rectifiedGrayR).astype(np.float32)/16
+dispr = right_matcher.compute(rectifiedGrayR, rectifiedGrayL).astype(np.float32)/16
+
+# displ = np.int16(displ)
+# dispr = np.int16(dispr)
+
+disparity = wls_filter.filter(displ, rectifiedGrayL, None, dispr)  # important to put "imgL" here!!!
+"""
 # disparity = (disparity - minDisp) / numDisp
 # disparity = stereo.compute(rectifiedGrayL, rectifiedGrayR)
 # ノーマライズ
 # disparity = cv2.normalize(disparity, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8U)
-
 fig = plt.figure(figsize=(16,9))
 plt.imshow(disparity, cmap="gray")
 plt.show()
-
 
 # ply_header = '''ply
 # format ascii 1.0
@@ -118,7 +151,7 @@ def writeAsPly(outFilePath, verts, colors, left_camera_num, right_camera_num):
     colors = colors.reshape(-1, 3)
     verts = np.hstack([verts, colors/255.0])
     # 不要な点群を除去
-    # verts = np.delete(verts, np.where(verts[:,2] > 3500)[0], axis=0)
+    # verts = np.delete(verts, np.where(verts[:,2] > 5000)[0], axis=0)
     
     with open(outFilePath, 'w', encoding='utf-8') as csvFile:
         writer = csv.writer(csvFile, delimiter=" ", lineterminator='\n')
@@ -149,8 +182,8 @@ ply_header = [['ply'],
                # 点群除去用（力技）
 #                ['element', 'vertex', "40100"],
 #                ['element', 'vertex', "56209"],
-#                ['element', 'vertex', "17344"],
-#                ['element', 'vertex', "22079"],
+#                ['element', 'vertex', "6441"],
+#                ['element', 'vertex', "32596"],
                ['property', 'float', 'x'],
                ['property', 'float', 'y'],
                ['property', 'float', 'z'],

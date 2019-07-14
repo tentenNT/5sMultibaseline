@@ -114,7 +114,6 @@ np.savez("./calibrationResultR.npz", rms=rms, mtx=mtx_r, dist=d_r, rvecs=r, tvec
 
 #--------------------------------------------------------2.ステレオビジョンシステムのキャリブレーション
 N = 18 #キャリブレーション用ステレオ画像のペア数
-#「left0.jgp」のように、ペア番号を'left','right'の後につけて同じフォルダに置く(grobが使いこなせれば直したい)
 
 square_size = 50.0      # 正方形のサイズ
 pattern_size = (9, 14)  # 模様のサイズ
